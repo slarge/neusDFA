@@ -16,27 +16,28 @@ library(VAST)
 # Load Data -----
 data("ecomon_epu")
 
-## Number of stations per year
-total_stations <- ecomon_epu %>%
-  group_by(year) %>%
-  summarize(total = n_distinct(id))
-
-season_list <- c("winter", "spring", "summer", "fall")
-
-# ## Proportion of stations with positive tows per year. Cutoff used to "keep"
+# # # Number of stations per year
+# total_stations <- ecomon_epu %>%
+#   group_by(year) %>%
+#   summarize(total = n_distinct(id))
+#
+# season_list <- c("winter", "spring", "summer", "fall")
+# #
+# # ## Proportion of stations with positive tows per year. Cutoff used to "keep"
 # spps <- ecomon_epu %>%
 #   mutate(present = ifelse(abundance > 0,
 #                           1, 0)) %>%
-#   filter(year >= 1994) %>%
+#   filter(year >= 1994,
+#         spp != "euph1") %>%
 #   left_join(total_stations) %>%
 #   group_by(year, season, spp) %>%
 #   summarize(positive_stations = sum(present, na.rm = TRUE)/total,
 #             keep = ifelse(positive_stations > .10,
 #                           1, 0)) %>%
 #   distinct()
-#
-# ## List of spp where the total number of years by season is greater than 5
-# ## and each spp group has more than cutoff of positive tows
+# #
+# # ## List of spp where the total number of years by season is greater than 5
+# # ## and each spp group has more than cutoff of positive tows
 # spp_list <- spps %>%
 #   filter(season %in% season_list) %>%
 #   group_by(spp, season) %>%
@@ -47,32 +48,49 @@ season_list <- c("winter", "spring", "summer", "fall")
 #   pull(spp)
 
 spp_list <- c("calfin", "chaeto", "cham", "clauso", "ctyp",
-              "euph", "euph1", "gas", "hyper", "larvaceans",
+              "euph", "gas", "hyper", "larvaceans",
               "mlucens", "oithspp", "para", "pseudo", "tlong")
-sp <- "calfin"
-n_x <- 25
+
+# "euph1"
+# sp <- "calfin"
+# n_x <- 25
 
 
 vast_wrapper <- function(sp, n_x = 100) {
 
+  ## Spring model -----
+  working_dir <- here::here(sprintf("analysis/vast_index/%s_seasonal", sp))
 
-  set.seed(1234)
+  if(!dir.exists(working_dir)) {
+    dir.create(working_dir, recursive  = TRUE)
+  }
+
+  ## Attempt to create a log file
+  my_log <- file(sprintf("%s/%s_log-%s.txt", working_dir, sp, n_x)) # File name of output log
+
+  sink(my_log, append = TRUE, type = "output") # Writing console output to log file
+  on.exit(sink(file = NULL), add = TRUE, after = TRUE)
+
+  sink(my_log, append = TRUE, type = "message")
+  on.exit(sink(file = NULL), add = TRUE, after = TRUE)
+
+
   zoop_dat <- ecomon_epu %>%
     dplyr::filter(grepl(sprintf("^%s", sp) , spp),
                   EPU %in% c("GB", "GOM", "MAB"),
                   as.numeric(year) >= 1994) %>%
     dplyr::mutate(areaswept_km2 = 1) %>%
     group_by(year, season) %>%
-    slice_sample(prop = .5) %>%
-    droplevels() %>%
+    # slice_sample(prop = .5) %>%
+    # droplevels() %>%
     data.frame()
 
-  # ggplot(zoop_dat, aes(x = lon, y = lat)) +
-  #   geom_point(data = zoop_dat %>% filter(abundance == 0), color = "black", fill = "black", shape = 21) +
-  #   geom_point(data = zoop_dat %>% filter(abundance > 0), aes(color = season, size = abundance), alpha = 0.5) +
-  #   facet_wrap(~year) +
-  #   labs(title = i) +
-  #   NULL
+  ggplot(zoop_dat, aes(x = lon, y = lat)) +
+    geom_point(data = zoop_dat %>% filter(abundance == 0), color = "black", fill = "black", shape = 21) +
+    geom_point(data = zoop_dat %>% filter(abundance > 0), aes(color = season, size = abundance), alpha = 0.5) +
+    facet_wrap(~year) +
+    # labs(title = i) +
+    NULL
 
 
   # Load data and quick exploration of structure
@@ -191,9 +209,6 @@ vast_wrapper <- function(sp, n_x = 100) {
   # component sets the distribution of the positive
   # distribution component. ?VAST::make_data()
 
-  # ObsModel <- c("PosDist" = 2, # Delta-Gamma; Alternative "Poisson-link delta-model" using log-link for numbers-density and log-link for biomass per number
-  #               "Link"    = 1)
-
   ObsModel <- c("PosDist" = 1, # Delta-Gamma; Alternative "Poisson-link delta-model" using log-link for numbers-density and log-link for biomass per number
                 "Link"    = 1)
 
@@ -201,7 +216,6 @@ vast_wrapper <- function(sp, n_x = 100) {
   settings = make_settings(n_x = n_x,
                            Region = "northwest_atlantic",
                            strata.limits = "EPU",
-                           # strata.limits = list('All_areas' = 1:1e5),
                            purpose = "index2",
                            FieldConfig = FieldConfig,
                            RhoConfig = RhoConfig,
@@ -220,19 +234,10 @@ vast_wrapper <- function(sp, n_x = 100) {
   # * all other levels for each term is 3 (spatialy varying plus linear effect), spatially varying linear effect on 1st linear predictor for category c
   X1config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1), 2, rep(3,nlevels(cov_dat$Year_Cov)-1) ), nrow=1 )
   X2config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1), 2, rep(3,nlevels(cov_dat$Year_Cov)-1) ), nrow=1 )
-  # X1config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1), 0, rep(0,nlevels(cov_dat$Year_Cov)-1) ), nrow=1 )
-  # X2config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1), 0, rep(0,nlevels(cov_dat$Year_Cov)-1) ), nrow=1 )
 
   #####
   ## Model fit -- make sure to use new functions
   #####
-
-  ## Spring model -----
-  working_dir <- here::here(sprintf("analysis/vast_index/%s_seasonal", sp))
-
-  if(!dir.exists(working_dir)) {
-    dir.create(working_dir, recursive  = TRUE)
-  }
 
   fit_orig = fit_model(settings = settings,
                        Lat_i = samp_dat$Lat,
@@ -286,7 +291,7 @@ vast_wrapper <- function(sp, n_x = 100) {
                   X2_formula = X2_formula,
                   X_contrasts = list(Season = contrasts(cov_dat$Season, contrasts = FALSE),
                                      Year_Cov = contrasts(cov_dat$Year_Cov, contrasts = FALSE)),
-                  newtonsteps = 1,
+                  newtonsteps = 0,
                   PredTF_i = samp_dat$Dummy,
                   Map = Map_adjust,
                   # Use_REML = FALSE,
@@ -311,5 +316,5 @@ vast_wrapper <- function(sp, n_x = 100) {
 possibly_vast_wrapper <- purrr::quietly(vast_wrapper)
 
 # plan(multisession, workers = 4)
-vast_runs <- purrr::map(.x = spp_list[1], .f = possibly_vast_wrapper)
+vast_runs <- purrr::map(.x = spp_list[4:14], .f = possibly_vast_wrapper)
 # plan(sequential)
