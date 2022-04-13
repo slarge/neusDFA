@@ -246,7 +246,47 @@ plot_seasonal <- function(spp = c( "calfin", "chaeto", "cham", "clauso", "ctyp",
 purrr::map(fit_names, plot_seasonal)
 
 
+index_ctl_annual <- data.frame(spp = fit_names) %>%
+  mutate(dat = purrr::map(.x = spp, function(x) readRDS(list.files(path = here::here("analysis/vast_index"),
+                                                                                pattern = sprintf("%s-index_ctl_annual.rds$", x),
+                                                                                recursive = TRUE,
+                                                                                full.names = TRUE)))) %>%
+  tidyr::unnest(c(dat))
 
+
+
+
+
+ln_index_ctl <- data.frame(spp = fit_names) %>%
+  # head(1) %>%
+  mutate(dat = purrr::map(.x = spp, function(x) readRDS(list.files(path = here::here("analysis/vast_index"),
+                                                                                pattern = sprintf("%s-ln_index_ctl.rds$", x),
+                                                                                recursive = TRUE,
+                                                                                full.names = TRUE)))) %>%
+  tidyr::unnest(c(dat))
+
+
+levels(ln_index_ctl$EPU) <- list(`Gulf of Maine` = "Gulf_of_Maine",
+                                 `Georges Bank` = "Georges_Bank",
+                                 `Mid-Atlantic Bight` = "Mid_Atlantic_Bight")
+
+p_index_ctl_seasonal_yr <- ggplot(data = ln_index_ctl) +
+  geom_ribbon(aes(x = year_season, ymin = lower, ymax = upper, fill = spp), alpha = 0.4, show.legend = FALSE) +
+  geom_line(aes(x = year_season, y = Estimate, color = spp), show.legend = FALSE) +
+  labs(title = "All taxa",
+       subtitle = "Estimated seasonal density",
+       x = "Year",
+       y = expression(ln(abundance%.%km^{-2}))) +
+  theme_bw() +
+  facet_wrap(~EPU, nrow = 3)
+
+# d_gt <- data.frame(spp = fit_names) %>%
+#   # head(1) %>%
+#   mutate(dat = purrr::map(.x = spp, function(x) readRDS(list.files(path = here::here("analysis/vast_index"),
+#                                                                    pattern = sprintf("%s-d_gt.rds$", x),
+#                                                                    recursive = TRUE,
+#                                                                    full.names = TRUE)))) %>%
+#   tidyr::unnest(c(dat))
 
 
 # # Similar process, but for the observations
