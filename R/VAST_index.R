@@ -15,30 +15,51 @@ Sys.setenv(BINPREF = "C:/Rtools/mingw_$(WIN)/bin/")
 
 # Load Data -----
 
-spp_list <- c("calfin", "cham", "ctyp", "tlong")
+# spp_list <- c("calfin", "cham", "ctyp", "tlong")
 season_list <- c("spring", "fall")
 
-spp_list <- "pomsal"
-
-spps <- ecomon_epu %>%
-  filter( EPU %in% c("GB", "GOM", "MAB")) %>%
-  group_by(spp, year) %>%
-  summarize(total = )
-#
-ggplot(spps, aes(x = lon, y = lat, color = bottom_depth)) +
-  geom_point() +
-  # geom_line() +
-  facet_wrap(~year)
-#
-#
-# ggplot(ecomon_epu %>% filter(spp == "ammspp"), aes(x = year, y = n_density, color = season)) +
-#   geom_point() +
-#   geom_line()
-grep("pomsal", unique(ecomon_epu$spp), value = TRUE)
-
 data("ecomon_epu")
-i <- "calfin"
-j <- "fall"
+
+
+## Number of stations per year
+total_stations <- ecomon_epu %>%
+  group_by(year) %>%
+  summarize(total = n_distinct(id))
+
+## Proportion of stations with positive tows per year. Cutoff used to "keep"
+spps <- ecomon_epu %>%
+  mutate(present = ifelse(abundance > 0,
+                          1, 0)) %>%
+  filter(year >= 1994) %>%
+  left_join(total_stations) %>%
+  group_by(year, season, spp) %>%
+  summarize(positive_stations = sum(present, na.rm = TRUE)/total,
+            keep = ifelse(positive_stations > .10,
+                          1, 0)) %>%
+  distinct()
+
+## List of spp where the total number of years by season is greater than 5
+## and each spp group has more than cutoff of positive tows
+spp_list <- spps %>%
+  filter(season %in% season_list) %>%
+  group_by(spp, season) %>%
+  summarize(count = sum(keep)) %>%
+  filter(all(count > 5)) %>%
+  select(spp) %>%
+  distinct() %>%
+  pull(spp)
+
+#
+# ggplot(ecomon_epu %>% filter(spp %in% spp_list,
+#                              season %in% c("spring", "fall"),
+#                              year > 1994,
+#                              abundance > 0), aes(x = lon, y = lat, color = spp)) +
+#   geom_point() +
+#   facet_grid(season ~ year)
+
+
+i <- "para"
+j <- "spring"
 
 for(i in spp_list){
   for(j in season_list){
@@ -48,23 +69,22 @@ for(i in spp_list){
       dplyr::filter(grepl(paste0("^",i), spp),
                     EPU %in% c("GB", "GOM", "MAB"),
                     season == j,
-                    as.numeric(year) >= 2000,
-                    !is.na(n_density)) %>%
+                    as.numeric(year) >= 1994) %>%
       dplyr::mutate(areaswept_km2 = 1,
-                    catch_ab = log(abundance + 1),
-                    bottom_depth = bottom_depth) %>%
+                    catch_ab = abundance) %>%
       droplevels()
 
 
     # ggplot(zoop_dat, aes(x = lon, y = lat)) +
-    #   geom_point(aes(color = EPU, size = n_density), alpha = 0.1)
-    #
+    #   geom_point(data = zoop_dat %>% filter(abundance == 0), color = "black", fill = "black", shape = 21) +
+    #   geom_point(data = zoop_dat %>% filter(abundance > 0), aes(color = EPU, size = abundance), alpha = 0.5) +
+    #   facet_wrap(~year) +
+    #   NULL
 
     covariate_data <- with(zoop_dat, data.frame(Year = NA,
                                                 Lat = lat,
                                                 Lon = lon,
                                                 bottom_depth = bottom_depth/100))
-
 
     # Vast Models -----
 
@@ -136,18 +156,18 @@ for(i in spp_list){
 
 
     ObsModel <- c("PosDist" = 7, # Zero-inflated Poisson (1st linear predictor for logit-linked zero-inflation; 2nd linear predictor for log-linked conditional mean of Poisson)
-                  "Link"    = 1)
+                  "Link"    = 1) ## Might want this to be 0
 
 
-    # X1_formula <- ~ splines::bs(bottom_depth, knots = 3, intercept = FALSE)
+    X1_formula <- ~ splines::bs(bottom_depth, knots = 3, intercept = FALSE)
 
 
     ## Make settings -----
 
     settings <- make_settings( n_x = 100,
                                Region = "northwest_atlantic",
-                               # strata.limits = "EPU",
-                               strata.limits = list('All_areas' = 1:1e5),# full area
+                               strata.limits = "EPU",
+                               # strata.limits = list('All_areas' = 1:1e5),# full area
                                purpose = "index2",
                                bias.correct = FALSE,
                                use_anisotropy = TRUE,
@@ -157,7 +177,7 @@ for(i in spp_list){
                                OverdispersionConfig = OverdispersionConfig
     )
 
-    # settings$epu_to_use <- c("Georges_Bank", "Gulf_of_Maine", "Mid_Atlantic_Bight")
+    settings$epu_to_use <- c("Georges_Bank", "Gulf_of_Maine", "Mid_Atlantic_Bight")
 
 
     # Run model -----
@@ -169,7 +189,6 @@ for(i in spp_list){
       dir.create(working_dir, recursive  = TRUE)
     }
 
-
     #run
     fit <- fit_model(settings = settings,
                      epu_to_use = settings$epu_to_use,
@@ -177,13 +196,12 @@ for(i in spp_list){
                      Lon_i = zoop_dat$lon,
                      t_i = zoop_dat$year,
                      c_i = rep(0, nrow(zoop_dat)),
-                     # b_i= as_units(zoop_dat$n_density, "count"),
                      b_i= as_units(zoop_dat$abundance, "count"),
                      a_i = as_units(zoop_dat$areaswept_km2, "km^2"),
                      working_dir = working_dir,
-                     # covariate_data = covariate_data,
-                     # X1_formula = X1_formula,
-                     # X2_formula = ~ 0,
+                     covariate_data = covariate_data,
+                     X1_formula = X1_formula,
+                     X2_formula = ~ 0,
                      anisotropy = FALSE, # corresponds to ln_H_input params
                      test_fit = FALSE,
                      newtonsteps = 1,
@@ -205,3 +223,9 @@ for(i in spp_list){
 
   }
 }
+
+# yeah, two options: (1) rerun with newtonsteps=0 and getsd=FALSE and inspect the "parameter_estimates.txt" to learn more about what variance parameter is hitting its lower bound; (2) just ignore the "statistical pecadillo" of having a parameter at a bound, and try fit_model( ..., test_fit=FALSE) and see if the Hessian is sufficiently close to positive definite to proceed
+# basically, VAST runs check_fit after running nlminb but before calculating SEs, and is conservative (risk-averse) in flagging potential statistical issues, including in this case that a parameter is approaching a bound.
+# I could also walk through how to add if-then statements to automate model-changes in these cases ... its been on a back-burner for a while to expand TMBhelper::fit_tmb to automatically reduce models when parameters hit bounds
+
+
