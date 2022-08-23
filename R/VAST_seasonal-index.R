@@ -53,13 +53,13 @@ spp_list <- c("calfin", "chaeto", "cham", "clauso", "ctyp",
 
 # "euph1"
 # sp <- "calfin"
-# n_x <- 25
-
+# n_x <- 100
+#
 
 vast_wrapper <- function(sp, n_x = 100) {
 
   ## Spring model -----
-  working_dir <- here::here(sprintf("analysis/vast_index/%s_seasonal", sp))
+  working_dir <- here::here(sprintf("analysis/vast_seasonal_index/%s_seasonal", sp))
 
   if(!dir.exists(working_dir)) {
     dir.create(working_dir, recursive  = TRUE)
@@ -85,12 +85,12 @@ vast_wrapper <- function(sp, n_x = 100) {
     # droplevels() %>%
     data.frame()
 
-  ggplot(zoop_dat, aes(x = lon, y = lat)) +
-    geom_point(data = zoop_dat %>% filter(abundance == 0), color = "black", fill = "black", shape = 21) +
-    geom_point(data = zoop_dat %>% filter(abundance > 0), aes(color = season, size = abundance), alpha = 0.5) +
-    facet_wrap(~year) +
-    # labs(title = i) +
-    NULL
+  # ggplot(zoop_dat, aes(x = lon, y = lat)) +
+  #   geom_point(data = zoop_dat %>% filter(abundance == 0), color = "black", fill = "black", shape = 21) +
+  #   geom_point(data = zoop_dat %>% filter(abundance > 0), aes(color = season, size = abundance), alpha = 0.5) +
+  #   facet_wrap(~year) +
+  #   # labs(title = i) +
+  #   NULL
 
 
   # Load data and quick exploration of structure
@@ -226,14 +226,22 @@ vast_wrapper <- function(sp, n_x = 100) {
   settings$epu_to_use <- c("Georges_Bank", "Gulf_of_Maine", "Mid_Atlantic_Bight")
 
   # Creating model formula
-  X1_formula = ~ Season + Year_Cov
-  X2_formula = ~ Season + Year_Cov
+  # X1_formula = ~ Season + Year_Cov
+  # X2_formula = ~ Season + Year_Cov
+
+  X1_formula = ~ Season #+ Year_Cov
+  X2_formula = ~ Season #+ Year_Cov
+
 
   # Implement corner constraint for linear effect but not spatially varying effect:
   # * one level for each term is 2 (just spatially varying) spatially varying, zero-centered linear effect on 1st linear predictor for category c
-  # * all other levels for each term is 3 (spatialy varying plus linear effect), spatially varying linear effect on 1st linear predictor for category c
-  X1config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1), 2, rep(3,nlevels(cov_dat$Year_Cov)-1) ), nrow=1 )
-  X2config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1), 2, rep(3,nlevels(cov_dat$Year_Cov)-1) ), nrow=1 )
+  # * all other levels for each term is 3 (spatially varying plus linear effect), spatially varying linear effect on 1st linear predictor for category c
+  # X1config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1), 2, rep(3,nlevels(cov_dat$Year_Cov)-1) ), nrow=1 )
+  # X2config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1), 2, rep(3,nlevels(cov_dat$Year_Cov)-1) ), nrow=1 )
+
+  X1config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1)), nrow=1 )
+  X2config_cp_use = matrix( c(2, rep(3,nlevels(cov_dat$Season)-1)), nrow=1 )
+
 
   #####
   ## Model fit -- make sure to use new functions
@@ -243,7 +251,7 @@ vast_wrapper <- function(sp, n_x = 100) {
                        Lat_i = samp_dat$Lat,
                        Lon_i = samp_dat$Lon,
                        t_i = samp_dat$year_season,
-                       b_i =  as_units(samp_dat$abundance, "count"),
+                       b_i = as_units(samp_dat$abundance, "count"),
                        a_i = as_units(samp_dat$areaswept_km2, "km^2"),
                        epu_to_use = settings$epu_to_use,
                        working_dir = working_dir,
@@ -252,8 +260,9 @@ vast_wrapper <- function(sp, n_x = 100) {
                        covariate_data = cov_dat,
                        X1_formula = X1_formula,
                        X2_formula = X2_formula,
-                       X_contrasts = list(Season = contrasts(cov_dat$Season, contrasts = FALSE),
-                                          Year_Cov = contrasts(cov_dat$Year_Cov, contrasts = FALSE)),
+                       X_contrasts = list(Season = contrasts(cov_dat$Season, contrasts = FALSE)#,
+                                          # Year_Cov = contrasts(cov_dat$Year_Cov, contrasts = FALSE)
+                                          ),
                        run_model = FALSE,
                        PredTF_i = samp_dat$Dummy,
                        # Use_REML = FALSE,
@@ -269,10 +278,20 @@ vast_wrapper <- function(sp, n_x = 100) {
   Map_adjust = fit_orig$tmb_list$Map
 
   # Pool variances for each term to a single value
-  Map_adjust$log_sigmaXi1_cp = factor(c(rep(as.numeric(Map_adjust$log_sigmaXi1_cp[1]), nlevels(cov_dat$Season)),
-                                        rep(as.numeric(Map_adjust$log_sigmaXi1_cp[nlevels(cov_dat$Season)+1]), nlevels(cov_dat$Year_Cov))))
-  Map_adjust$log_sigmaXi2_cp = factor(c(rep(as.numeric(Map_adjust$log_sigmaXi2_cp[1]), nlevels(cov_dat$Season)),
-                                        rep(as.numeric(Map_adjust$log_sigmaXi2_cp[nlevels(cov_dat$Season)+1]), nlevels(cov_dat$Year_Cov))))
+  # Map_adjust$log_sigmaXi1_cp = factor(c(rep(as.numeric(Map_adjust$log_sigmaXi1_cp[1]), nlevels(cov_dat$Season)),
+  #                                       rep(as.numeric(Map_adjust$log_sigmaXi1_cp[nlevels(cov_dat$Season)+1]), nlevels(cov_dat$Year_Cov))))
+  # Map_adjust$log_sigmaXi2_cp = factor(c(rep(as.numeric(Map_adjust$log_sigmaXi2_cp[1]), nlevels(cov_dat$Season)),
+                                        # rep(as.numeric(Map_adjust$log_sigmaXi2_cp[nlevels(cov_dat$Season)+1]), nlevels(cov_dat$Year_Cov))))
+  #
+  #
+  Map_adjust$log_sigmaXi1_cp = factor(c(rep(as.numeric(Map_adjust$log_sigmaXi1_cp[1]), nlevels(cov_dat$Season))))#,
+                                        # rep(as.numeric(Map_adjust$log_sigmaXi1_cp[nlevels(cov_dat$Season)+1])#,
+                                            # nlevels(cov_dat$Year_Cov)
+                                            # )))
+  Map_adjust$log_sigmaXi2_cp = factor(c(rep(as.numeric(Map_adjust$log_sigmaXi2_cp[1]), nlevels(cov_dat$Season))))#,
+                                        # rep(as.numeric(Map_adjust$log_sigmaXi2_cp[nlevels(cov_dat$Season)+1])#,
+                                            # nlevels(cov_dat$Year_Cov)
+                                            # )))
 
 
   # Fit final model with new mapping
@@ -289,9 +308,10 @@ vast_wrapper <- function(sp, n_x = 100) {
                   covariate_data = cov_dat,
                   X1_formula = X1_formula,
                   X2_formula = X2_formula,
-                  X_contrasts = list(Season = contrasts(cov_dat$Season, contrasts = FALSE),
-                                     Year_Cov = contrasts(cov_dat$Year_Cov, contrasts = FALSE)),
-                  newtonsteps = 0,
+                  X_contrasts = list(Season = contrasts(cov_dat$Season, contrasts = FALSE)#,
+                                     # Year_Cov = contrasts(cov_dat$Year_Cov, contrasts = FALSE)
+                                     ),
+                  newtonsteps = 1,
                   PredTF_i = samp_dat$Dummy,
                   Map = Map_adjust,
                   # Use_REML = FALSE,
@@ -316,5 +336,5 @@ vast_wrapper <- function(sp, n_x = 100) {
 possibly_vast_wrapper <- purrr::quietly(vast_wrapper)
 
 # plan(multisession, workers = 4)
-vast_runs <- purrr::map(.x = spp_list[4:14], .f = possibly_vast_wrapper)
+vast_runs <- purrr::map(.x = spp_list, .f = possibly_vast_wrapper)
 # plan(sequential)
