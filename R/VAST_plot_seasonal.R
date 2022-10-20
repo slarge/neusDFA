@@ -3,11 +3,18 @@ library(ggplot2)
 library(sf)
 library(dplyr)
 library(patchwork)
+library(ggrepel)
 
 source("R/helper_functions.R")
 
-fit_list <- list.files(path = here::here("analysis/vast_index/"), pattern = "fit.rds", recursive = TRUE, full.names = TRUE)
-fit_names <- gsub(pattern = ".*vast_index/(.*)_seasonal/fit.rds$",  "\\1", fit_list)
+fit_list <- list.files(path = here::here("analysis/vast_seasonal_index/"), pattern = "fit.rds", recursive = TRUE, full.names = TRUE)
+fit_names <- gsub(pattern = ".*vast_seasonal_index/(.*)_seasonal/fit.rds$",  "\\1", fit_list)
+
+# file.rename(list.files(path = here::here("analysis/vast_seasonal_index/"),
+#                        pattern = ".*Kmeans", recursive = TRUE, full.names = TRUE),
+#             stringr::str_replace(list.files(path = here::here("analysis/vast_seasonal_index/"),
+#                                             pattern = ".*Kmeans", recursive = TRUE, full.names = TRUE),
+#                                  pattern = "seasonalKmeans", "seasonal/Kmeans"))
 
 spp_list <- list(`Calanus finmarchicus` = "calfin",
                  `Chaetognatha` = "chaeto",
@@ -26,40 +33,6 @@ spp_list <- list(`Calanus finmarchicus` = "calfin",
               `Temora longicornis` = "tlong")
 
 
-## General mapping parameters
-xmin = -76.5
-xmax = -65.5
-ymin = 35.5
-ymax = 44.5
-
-xlims <- c(xmin, xmax)
-ylims <- c(ymin, ymax)
-crs_epu <-  4269
-
-## Download data layers
-## 1) North America layer
-ne_countries <- rnaturalearth::ne_countries(scale = 10,
-                                            continent = "North America",
-                                            returnclass = "sf") %>%
-  sf::st_transform(crs = crs_epu)
-
-## 2) State layer
-ne_states <- rnaturalearth::ne_states(country = "united states of america",
-                                      returnclass = "sf") %>%
-  sf::st_transform(crs = crs_epu)
-
-
-## Categories = c
-## years == t
-## strata == l
-## extrapolation grid == g
-## probability distribution function for positive catch == g
-
-# Density
-yearseason = expand.grid("season" = c("winter", "spring", "summer", "fall"),
-                         "year" =  1994:2017)
-
-yearseason_levels = apply(yearseason[,2:1], MARGIN = 1, FUN = paste, collapse = "_")
 
 
 
@@ -84,7 +57,7 @@ plot_seasonal <- function(spp = c( "calfin", "chaeto", "cham", "clauso", "ctyp",
     sf::st_as_sf(coords = c("Lon","Lat")) %>%
     sf::st_set_crs(crs_epu)
 
-  names(grep(spp, spp_list, value = TRUE))
+  # names(grep(spp, spp_list, value = TRUE))
   spp_label = names(grep(spp, spp_list, value = TRUE))
   ## Density plot (by year)
   d_plot <- ggplot() +
@@ -103,13 +76,13 @@ plot_seasonal <- function(spp = c( "calfin", "chaeto", "cham", "clauso", "ctyp",
 
   # d_plot
 
-  ggsave(filename = here::here(sprintf("analysis/vast_index/%s_seasonal/%s-density_plot.png", spp, spp)), d_plot)
-  saveRDS(object = d_gt, file = here::here(sprintf("analysis/vast_index/%s_seasonal/%s-d_gt.rds", spp, spp)))
+  ggsave(filename = here::here(sprintf("analysis/vast_seasonal_index/%s_seasonal/%s-density_plot.png", spp, spp)), d_plot)
+  saveRDS(object = d_gt, file = here::here(sprintf("analysis/vast_seasonal_index/%s_seasonal/%s-d_gt.rds", spp, spp)))
   ## Spatio-temporal variation
 
 
   ## Index with Standard Error
-  index_list <- list.files(path = here::here("analysis/vast_index/"), pattern = "index_ctl_sd_array.rds", recursive = TRUE, full.names = TRUE)
+  index_list <- list.files(path = here::here("analysis/vast_seasonal_index/"), pattern = "index_ctl_sd_array.rds", recursive = TRUE, full.names = TRUE)
 
   index_ctl_sd_array <- readRDS(grep(pattern = spp, index_list, value = TRUE))
 
@@ -161,8 +134,8 @@ plot_seasonal <- function(spp = c( "calfin", "chaeto", "cham", "clauso", "ctyp",
     # facet_wrap(~epu) +
     NULL
 
-  ggsave(filename = here::here(sprintf("analysis/vast_index/%s_seasonal/%s-index_annual.png", spp, spp)), p_index_ctl_annual)
-  saveRDS(object = index_ctl_annual, file = here::here(sprintf("analysis/vast_index/%s_seasonal/%s-index_ctl_annual.rds", spp, spp)))
+  ggsave(filename = here::here(sprintf("analysis/vast_seasonal_index/%s_seasonal/%s-index_annual.png", spp, spp)), p_index_ctl_annual)
+  saveRDS(object = index_ctl_annual, file = here::here(sprintf("analysis/vast_seasonal_index/%s_seasonal/%s-index_ctl_annual.rds", spp, spp)))
 
   ## Seasonal
   index_ctl_season <- as.data.frame.table(index_ctl_array) %>%
@@ -234,18 +207,16 @@ plot_seasonal <- function(spp = c( "calfin", "chaeto", "cham", "clauso", "ctyp",
     facet_wrap(~EPU, nrow = 3)
 
 
-  ggsave(filename = here::here(sprintf("analysis/vast_index/%s_seasonal/%s-index_seasonal.png", spp, spp)), p_index_ctl_seasonal)
-  ggsave(filename = here::here(sprintf("analysis/vast_index/%s_seasonal/%s-index_seasonal_yr.png", spp, spp)), p_index_ctl_seasonal_yr)
+  ggsave(filename = here::here(sprintf("analysis/vast_seasonal_index/%s_seasonal/%s-index_seasonal.png", spp, spp)), p_index_ctl_seasonal)
+  ggsave(filename = here::here(sprintf("analysis/vast_seasonal_index/%s_seasonal/%s-index_seasonal_yr.png", spp, spp)), p_index_ctl_seasonal_yr)
 
-  saveRDS(object = ln_index_ctl, file = here::here(sprintf("analysis/vast_index/%s_seasonal/%s-ln_index_ctl.rds", spp, spp)))
+  saveRDS(object = ln_index_ctl, file = here::here(sprintf("analysis/vast_seasonal_index/%s_seasonal/%s-ln_index_ctl.rds", spp, spp)))
 
 
 }
 
 
-purrr::map(fit_names, plot_seasonal)
-
-
+purrr::map(fit_names[11:14], plot_seasonal)
 
 
 
@@ -355,6 +326,69 @@ purrr::map(fit_names, plot_seasonal)
 #   facet_wrap(~year)
 
 
+spp_df <- stack(spp_list) %>%
+  select(spp = values,
+         label2 = ind) %>%
+  mutate(label2 = sprintf('italic("  %s")', label2))
+
+index_ctl_annual_list <- data.frame(path = list.files(path = here::here("analysis/vast_seasonal_index/"),
+                                                      pattern = ".*index_ctl_annual.rds$", recursive = TRUE, full.names = TRUE)) %>%
+  mutate(spp = gsub(pattern = ".*vast_seasonal_index/(.*)_seasonal(.*)",  "\\1", path),
+         dat = purrr::map(path, ~readRDS(file = .x))) %>%
+  tidyr::unnest(cols = c(dat)) %>%
+  left_join(spp_df) %>%
+  mutate(label = if_else(year == max(year),
+                  as.character(spp),
+                  NA_character_))
+
+
+p1 <- index_ctl_annual_list %>%
+  filter(epu %in% c("Georges Bank", "Gulf of Maine")) %>%
+  ggplot(aes(x = year, y = est, ymin = lower, ymax = upper, fill = spp, group = spp)) +
+  geom_ribbon(alpha = 0.1) +
+  geom_line(aes(color = spp)) +
+  geom_point(aes(color = spp)) +
+  labs(x = "Year",
+       y = expression(Density~ln(abundance~km^{-2}))) +
+  theme_minimal() +
+  scale_x_continuous(limits = c(1994, 2024))+
+  theme(legend.position = "none") +
+  facet_wrap(~epu, ncol = 1)
+
+p1 +
+  geom_text_repel(aes(label = gsub("^.*$", " ", label)), # This will force the correct position of the link's right end.
+                  segment.curvature = -0.1,
+                  segment.square = TRUE,
+                  segment.color = "grey",
+                  box.padding = 0.1,
+                  point.padding = 0.6,
+                  nudge_x = 2,
+                  # nudge_y = 10,
+                  force = 2,
+                  hjust = 0,
+                  direction = "y",
+                  na.rm = TRUE,
+                  xlim = c(2017, Inf),
+                  ylim = c(0, Inf),
+                  parse = TRUE,
+  ) +
+  geom_text_repel(data = . %>% filter(!is.na(label)),
+                  aes(label = paste0("  ", label), color = spp),
+                  segment.alpha = 0, ## This will 'hide' the link
+                  segment.curvature = -0.1,
+                  segment.square = TRUE,
+                  segment.color = "grey",
+                  box.padding = 0.1,
+                  point.padding = 0.6,
+                  nudge_x = 2,
+                  # nudge_y = 1000,
+                  force = 2,
+                  hjust = 0,
+                  direction = "y",
+                  na.rm = TRUE,
+                  xlim = c(2017, Inf),
+                  ylim = c(0, Inf),
+                  parse = TRUE)
 
 
 
@@ -419,6 +453,3 @@ plot( fit,
 
 
 ####
-
-simulate_data( fit=fit, type=4 )$Index_ctl
-
