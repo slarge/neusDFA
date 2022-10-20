@@ -1,0 +1,21 @@
+---
+title: "Seasonal VAST parameters"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, echo=FALSE, include=TRUE, results="asis"}
+library(knitr)
+
+mathy.df <- data.frame(site = c("A", "B"), 
+                       b0 = c(3, 4), 
+                       BA = c(1, 2))
+
+colnames(mathy.df) <- c("Site", "$\\beta_0$", "$\\beta_A$")
+
+kable(mathy.df, escape=FALSE)
+```
