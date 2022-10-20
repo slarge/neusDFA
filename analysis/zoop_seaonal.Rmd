@@ -1,0 +1,29 @@
+---
+title: "Seasonal and interannual variation in northwest Atlantic zooplankton density"
+author: "Scott I. Large"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstract
+The Northwest Atlantic ocean We applied a spatio-temporal model that includes annual, seasonal, and spatial variation in density to standardize spatially and temporally unbalanced sampling. Northwest Atlantic Ocean from 1994-2017 . 
+
+
+## Introduction
+
+
+* Zooplankton are critical links within marine foodwebs
+* Northeast Continental Shelf LME (NEUS) 
+
+
+## Methods
+
+We compiled sampling data from the EcoMon program (Kane, 2007). We selected taxa that had at least 10% positive tows and 
+
+## Results
+
+## Discussion
+
